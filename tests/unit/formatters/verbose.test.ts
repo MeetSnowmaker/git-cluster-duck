@@ -9,7 +9,6 @@ const mockCtx = {
       hashShort: 'aaa111',
       subject: 'feat: Add feature',
       body: 'This is the body\nwith multiple lines',
-      message: 'feat: Add feature\n\nThis is the body\nwith multiple lines',
       issues: ['PROJ-123'],
     }),
     createMockCommit({
@@ -17,7 +16,6 @@ const mockCtx = {
       hashShort: 'bbb222',
       subject: 'chore: No issue',
       body: '',
-      message: 'chore: No issue',
       issues: [],
     }),
   ],
@@ -47,6 +45,22 @@ describe('verboseJsonFormatter', () => {
     expect(parsed['PROJ-123'][0].hash).toBe('aaa111full');
     expect(parsed['PROJ-123'][0].message).toContain('This is the body');
     expect(parsed['_noIssue']).toHaveLength(1);
+  });
+
+  it('groups multiple no-issue commits together', () => {
+    const multiNoIssueCtx = {
+      commits: [
+        createMockCommit({ hash: 'no1', hashShort: 'no1', subject: 'chore: First', issues: [] }),
+        createMockCommit({ hash: 'no2', hashShort: 'no2', subject: 'chore: Second', issues: [] }),
+      ],
+      issues: [],
+      meta: createMockMeta({ totalCommits: 2 }),
+    };
+
+    const result = verboseJsonFormatter(multiNoIssueCtx);
+    const parsed = JSON.parse(result);
+
+    expect(parsed['_noIssue']).toHaveLength(2);
   });
 });
 

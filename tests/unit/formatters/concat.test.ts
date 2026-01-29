@@ -4,7 +4,7 @@ import { createMockCommits, createMockMeta } from '../setup.js';
 
 const mockCtx = {
   commits: createMockCommits(),
-  issues: ['PROJ-123', 'PROJ-456'],
+  issues: ['ALPHA-001', 'PROJ-123', 'PROJ-456', 'ZEBRA-100'],
   meta: createMockMeta(),
 };
 
@@ -33,12 +33,12 @@ describe('concatJsonFormatter', () => {
     const result = concatJsonFormatter(mockCtx);
     const parsed = JSON.parse(result);
 
-    expect(parsed.entries).toHaveLength(3);
+    expect(parsed.entries).toHaveLength(6);
     expect(parsed.entries[0]).toEqual({
       message: 'feat: Add login feature PROJ-123',
       issues: ['PROJ-123'],
     });
-    expect(parsed.allIssues).toEqual(['PROJ-123', 'PROJ-456']);
+    expect(parsed.allIssues).toEqual(['ALPHA-001', 'PROJ-123', 'PROJ-456', 'ZEBRA-100']);
   });
 });
 

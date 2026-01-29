@@ -16,7 +16,10 @@ import {
   getCommitsBetween,
   getRepoRoot,
   getRepoName,
+  printNoGitError,
+  getGitMeta,
 } from '../../../src/git/index.js';
+import { createMockCommits } from '../setup.js';
 
 const mockExecSync = vi.mocked(execSync);
 
@@ -214,5 +217,47 @@ describe('getCommitsBetween', () => {
     const commits = getCommitsBetween('feature', 'main');
 
     expect(commits[0].issues).toEqual([]);
+  });
+});
+
+describe('printNoGitError', () => {
+  it('outputs error message to console', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    printNoGitError();
+
+    expect(consoleSpy).toHaveBeenCalled();
+    const output = consoleSpy.mock.calls.map(call => call[0]).join('\n');
+    expect(output).toContain('Quack');
+    expect(output).toContain('git');
+
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('getGitMeta', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns git metadata object', () => {
+    mockExecSync.mockReturnValue('/test/repo\n');
+
+    const commits = createMockCommits();
+    const meta = getGitMeta('feature/test', 'main', commits);
+
+    expect(meta.targetBranch).toBe('feature/test');
+    expect(meta.baseBranch).toBe('main');
+    expect(meta.totalCommits).toBe(6);
+    expect(meta.repoName).toBe('repo');
+  });
+
+  it('handles empty commits', () => {
+    mockExecSync.mockReturnValue('/my/project\n');
+
+    const meta = getGitMeta('develop', 'main', []);
+
+    expect(meta.totalCommits).toBe(0);
+    expect(meta.repoName).toBe('project');
   });
 });

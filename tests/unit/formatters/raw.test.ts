@@ -4,7 +4,7 @@ import { createMockCommits, createMockMeta } from '../setup.js';
 
 const mockCtx = {
   commits: createMockCommits(),
-  issues: ['PROJ-123', 'PROJ-456'],
+  issues: ['ALPHA-001', 'PROJ-123', 'PROJ-456', 'ZEBRA-100'],
   meta: createMockMeta(),
 };
 
@@ -13,7 +13,7 @@ describe('textFormatter (raw-text)', () => {
     const result = textFormatter(mockCtx);
 
     expect(result).toContain('Changelog: feature/test → main');
-    expect(result).toContain('Commits: 3');
+    expect(result).toContain('Commits: 6');
     expect(result).toContain('commit aaa111');
     expect(result).toContain('Author: Test User <test@example.com>');
     expect(result).toContain('feat: Add login feature PROJ-123');
@@ -27,9 +27,9 @@ describe('jsonFormatter (raw-json)', () => {
 
     expect(parsed.meta.targetBranch).toBe('feature/test');
     expect(parsed.meta.baseBranch).toBe('main');
-    expect(parsed.meta.totalCommits).toBe(3);
-    expect(parsed.issues).toEqual(['PROJ-123', 'PROJ-456']);
-    expect(parsed.commits).toHaveLength(3);
+    expect(parsed.meta.totalCommits).toBe(6);
+    expect(parsed.issues).toEqual(['ALPHA-001', 'PROJ-123', 'PROJ-456', 'ZEBRA-100']);
+    expect(parsed.commits).toHaveLength(6);
   });
 
   it('includes full commit data', () => {
@@ -51,7 +51,7 @@ describe('mdFormatter (raw-md)', () => {
     const result = mdFormatter(mockCtx);
 
     expect(result).toContain('# Changelog: feature/test → main');
-    expect(result).toContain('**Commits:** 3');
+    expect(result).toContain('**Commits:** 6');
     expect(result).toContain('### `aaa111` feat: Add login feature PROJ-123');
     expect(result).toContain('- **Author:**');
     expect(result).toContain('- **Issues:** `PROJ-123`');
@@ -63,5 +63,19 @@ describe('mdFormatter (raw-md)', () => {
     expect(result).toContain('## Issues Referenced');
     expect(result).toContain('- PROJ-123');
     expect(result).toContain('- PROJ-456');
+  });
+
+  it('omits issues section when no issues referenced', () => {
+    const noIssuesCtx = {
+      commits: [
+        createMockCommits()[2], // The no-issue commit
+      ],
+      issues: [],
+      meta: createMockMeta({ totalCommits: 1 }),
+    };
+
+    const result = mdFormatter(noIssuesCtx);
+
+    expect(result).not.toContain('## Issues Referenced');
   });
 });
