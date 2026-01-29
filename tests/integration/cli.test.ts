@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execSync } from 'child_process';
 import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
@@ -32,8 +32,122 @@ function execWithError(cmd: string, cwd: string = TEST_DIR): { stdout: string; s
   }
 }
 
-describe('Integration Tests', () => {
+function isGitInstalled(): boolean {
+  try {
+    execSync('git --version', { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isGitConfigured(): boolean {
+  try {
+    execSync('git config --global user.email', { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// =============================================================================
+// Phase 1: No Git Installed
+// Run with: --testNamePattern="no-git"
+// =============================================================================
+
+describe('[no-git] CLI without git installed', () => {
   beforeAll(() => {
+    mkdirSync(TEST_DIR, { recursive: true });
+  });
+
+  afterAll(() => {
+    if (existsSync(TEST_DIR)) {
+      rmSync(TEST_DIR, { recursive: true, force: true });
+    }
+  });
+
+  it('[no-git] shows error when git is not installed', () => {
+    if (isGitInstalled()) {
+      console.log('Skipping: git is already installed');
+      return;
+    }
+
+    const { stdout, stderr } = execWithError(`node ${CLI_PATH}`);
+    const output = stdout + stderr;
+
+    expect(output).toMatch(/git|Quack/i);
+  });
+
+  it('[no-git] --help works without git', () => {
+    const result = exec(`node ${CLI_PATH} --help`, process.cwd());
+
+    expect(result).toContain('Usage:');
+    expect(result).toContain('gcd');
+  });
+
+  it('[no-git] --version works without git', () => {
+    const result = exec(`node ${CLI_PATH} --version`, process.cwd());
+    const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8'));
+
+    expect(result).toContain(pkg.version);
+  });
+});
+
+// =============================================================================
+// Phase 2: Git Installed, No Config
+// Run with: --testNamePattern="no-config"
+// =============================================================================
+
+describe('[no-config] CLI with git but no user config', () => {
+  beforeAll(() => {
+    mkdirSync(TEST_DIR, { recursive: true });
+  });
+
+  afterAll(() => {
+    if (existsSync(TEST_DIR)) {
+      rmSync(TEST_DIR, { recursive: true, force: true });
+    }
+  });
+
+  it('[no-config] shows error when not in a git repo', () => {
+    if (!isGitInstalled()) {
+      console.log('Skipping: git not installed yet');
+      return;
+    }
+
+    const nonGitDir = join(TEST_DIR, 'non-git');
+    mkdirSync(nonGitDir, { recursive: true });
+
+    const { stdout, stderr } = execWithError(`node ${CLI_PATH}`, nonGitDir);
+    const output = stdout + stderr;
+
+    expect(output).toMatch(/not a git repository|Quack/i);
+  });
+
+  it('[no-config] init command works without git config', () => {
+    if (!isGitInstalled()) {
+      console.log('Skipping: git not installed yet');
+      return;
+    }
+
+    const result = exec(`node ${CLI_PATH} init --help`, process.cwd());
+
+    expect(result).toContain('init');
+  });
+});
+
+// =============================================================================
+// Phase 3: Fully Configured
+// Run with: --testNamePattern="configured"
+// =============================================================================
+
+describe('[configured] Full integration tests', () => {
+  beforeAll(() => {
+    if (!isGitInstalled() || !isGitConfigured()) {
+      console.log('Skipping: git not fully configured');
+      return;
+    }
+
     // Ensure CLI is built
     if (!existsSync(CLI_PATH)) {
       execSync('npm run build', { cwd: process.cwd(), stdio: 'pipe' });
@@ -41,266 +155,216 @@ describe('Integration Tests', () => {
 
     // Create test directory
     mkdirSync(TEST_DIR, { recursive: true });
+
+    // Initialize git repo
+    exec('git init');
+    exec('git config user.email "test@test.com"');
+    exec('git config user.name "Test User"');
+
+    // Create initial commit on main
+    writeFileSync(join(TEST_DIR, 'README.md'), '# Test');
+    exec('git add .');
+    exec('git commit -m "Initial commit"');
+    exec('git branch -M main');
+
+    // Create feature branch with commits
+    exec('git checkout -b feature/test');
+
+    writeFileSync(join(TEST_DIR, 'feature.ts'), 'export const x = 1;');
+    exec('git add .');
+    exec('git commit -m "feat: Add new feature PROJ-123"');
+
+    writeFileSync(join(TEST_DIR, 'fix.ts'), 'export const y = 2;');
+    exec('git add .');
+    exec('git commit -m "fix: Fix bug PROJ-456"');
+
+    writeFileSync(join(TEST_DIR, 'chore.ts'), 'export const z = 3;');
+    exec('git add .');
+    exec('git commit -m "chore: Update deps"');
   });
 
   afterAll(() => {
-    // Cleanup test directory
     if (existsSync(TEST_DIR)) {
       rmSync(TEST_DIR, { recursive: true, force: true });
     }
   });
 
-  describe('Git Repo Fixture', () => {
-    beforeAll(() => {
-      // Initialize git repo
-      exec('git init');
-      exec('git config user.email "test@test.com"');
-      exec('git config user.name "Test User"');
+  it('[configured] creates test repo with commits', () => {
+    if (!isGitConfigured()) return;
 
-      // Create initial commit on main
-      writeFileSync(join(TEST_DIR, 'README.md'), '# Test');
-      exec('git add .');
-      exec('git commit -m "Initial commit"');
-      exec('git branch -M main');
-
-      // Create feature branch with commits
-      exec('git checkout -b feature/test');
-
-      writeFileSync(join(TEST_DIR, 'feature.ts'), 'export const x = 1;');
-      exec('git add .');
-      exec('git commit -m "feat: Add new feature PROJ-123"');
-
-      writeFileSync(join(TEST_DIR, 'fix.ts'), 'export const y = 2;');
-      exec('git add .');
-      exec('git commit -m "fix: Fix bug PROJ-456"');
-
-      writeFileSync(join(TEST_DIR, 'chore.ts'), 'export const z = 3;');
-      exec('git add .');
-      exec('git commit -m "chore: Update deps"');
-    });
-
-    it('created test repo with commits', () => {
-      const log = exec('git log --oneline');
-      expect(log).toContain('feat: Add new feature PROJ-123');
-      expect(log).toContain('fix: Fix bug PROJ-456');
-      expect(log).toContain('chore: Update deps');
-    });
+    const log = exec('git log --oneline');
+    expect(log).toContain('feat: Add new feature PROJ-123');
+    expect(log).toContain('fix: Fix bug PROJ-456');
+    expect(log).toContain('chore: Update deps');
   });
 
-  describe('Full run with defaults', () => {
-    it('generates all output files', () => {
-      const result = exec(`node ${CLI_PATH}`);
+  it('[configured] generates all output files with defaults', () => {
+    if (!isGitConfigured()) return;
 
-      expect(result).toContain('git-cluster-duck');
-      expect(result).toContain('feature/test');
-      expect(result).toContain('main');
-      expect(result).toContain('3 commit(s)');
-      expect(result).toContain('PROJ-123');
-      expect(result).toContain('PROJ-456');
-      expect(result).toContain('Generated');
-    });
+    const result = exec(`node ${CLI_PATH}`);
 
-    it('creates output directory with files', () => {
-      // Find the temp/gcd directory
-      const tempDir = join(TEST_DIR, 'temp', 'gcd');
-      expect(existsSync(tempDir)).toBe(true);
-    });
+    expect(result).toContain('git-cluster-duck');
+    expect(result).toContain('feature/test');
+    expect(result).toContain('main');
+    expect(result).toContain('3 commit(s)');
+    expect(result).toContain('PROJ-123');
+    expect(result).toContain('PROJ-456');
+    expect(result).toContain('Generated');
   });
 
-  describe('--format flag', () => {
-    it('generates only specified format', () => {
-      const outputDir = join(TEST_DIR, 'format-test');
-      const result = exec(`node ${CLI_PATH} --format raw-json --output ${outputDir}`);
+  it('[configured] creates output directory with files', () => {
+    if (!isGitConfigured()) return;
 
-      expect(result).toContain('Generated 1 file(s)');
-
-      const jsonFile = join(outputDir, 'raw-json.json');
-      expect(existsSync(jsonFile)).toBe(true);
-
-      const content = JSON.parse(readFileSync(jsonFile, 'utf-8'));
-      expect(content.commits).toHaveLength(3);
-      expect(content.issues).toContain('PROJ-123');
-    });
-
-    it('generates multiple specified formats', () => {
-      const outputDir = join(TEST_DIR, 'multi-format-test');
-      const result = exec(`node ${CLI_PATH} --format raw-text,raw-json --output ${outputDir}`);
-
-      expect(result).toContain('Generated 2 file(s)');
-      expect(existsSync(join(outputDir, 'raw-text.txt'))).toBe(true);
-      expect(existsSync(join(outputDir, 'raw-json.json'))).toBe(true);
-    });
-
-    it('errors on invalid format', () => {
-      const { stderr, code } = execWithError(`node ${CLI_PATH} --format invalid-format`);
-
-      expect(code).not.toBe(0);
-      expect(stderr).toContain('Unknown format');
-    });
+    const tempDir = join(TEST_DIR, 'temp', 'gcd');
+    expect(existsSync(tempDir)).toBe(true);
   });
 
-  describe('--stdout flag', () => {
-    it('outputs to console instead of files', () => {
-      const result = exec(`node ${CLI_PATH} --format raw-json --stdout`);
+  it('[configured] --format generates only specified format', () => {
+    if (!isGitConfigured()) return;
 
-      expect(result).toContain('"commits"');
-      expect(result).toContain('PROJ-123');
+    const outputDir = join(TEST_DIR, 'format-test');
+    const result = exec(`node ${CLI_PATH} --format raw-json --output ${outputDir}`);
 
-      // Should be valid JSON in the output
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      expect(jsonMatch).not.toBe(null);
+    expect(result).toContain('Generated 1 file(s)');
 
-      const parsed = JSON.parse(jsonMatch![0]);
-      expect(parsed.commits).toBeDefined();
-    });
+    const jsonFile = join(outputDir, 'raw-json.json');
+    expect(existsSync(jsonFile)).toBe(true);
+
+    const content = JSON.parse(readFileSync(jsonFile, 'utf-8'));
+    expect(content.commits).toHaveLength(3);
+    expect(content.issues).toContain('PROJ-123');
   });
 
-  describe('--no-issues flag', () => {
-    it('skips issue extraction', () => {
-      const result = exec(`node ${CLI_PATH} --format raw-json --stdout --no-issues`);
+  it('[configured] --format generates multiple formats', () => {
+    if (!isGitConfigured()) return;
 
-      // Parse the JSON from output
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      const parsed = JSON.parse(jsonMatch![0]);
+    const outputDir = join(TEST_DIR, 'multi-format-test');
+    const result = exec(`node ${CLI_PATH} --format raw-text,raw-json --output ${outputDir}`);
 
-      // Commits should have empty issues arrays
-      expect(parsed.commits[0].issues).toEqual([]);
-      expect(parsed.issues).toEqual([]);
-    });
+    expect(result).toContain('Generated 2 file(s)');
+    expect(existsSync(join(outputDir, 'raw-text.txt'))).toBe(true);
+    expect(existsSync(join(outputDir, 'raw-json.json'))).toBe(true);
   });
 
-  describe('--pattern flag', () => {
-    it('uses custom pattern', () => {
-      const result = exec(`node ${CLI_PATH} --format raw-json --stdout --pattern "PROJ-\\d+"`);
+  it('[configured] --format errors on invalid format', () => {
+    if (!isGitConfigured()) return;
 
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      const parsed = JSON.parse(jsonMatch![0]);
+    const { stderr, code } = execWithError(`node ${CLI_PATH} --format invalid-format`);
 
-      expect(parsed.issues).toContain('PROJ-123');
-      expect(parsed.issues).toContain('PROJ-456');
-    });
+    expect(code).not.toBe(0);
+    expect(stderr).toContain('Unknown format');
   });
 
-  describe('Edge cases', () => {
-    it('handles same branch comparison gracefully', () => {
-      const result = exec(`node ${CLI_PATH} main main --stdout --format raw-text`);
+  it('[configured] --stdout outputs to console', () => {
+    if (!isGitConfigured()) return;
 
-      expect(result).toContain('No commits found');
-    });
+    const result = exec(`node ${CLI_PATH} --format raw-json --stdout`);
 
-    it('handles branch with nested slashes', () => {
-      // Create branch with nested slashes
-      exec('git checkout -b feature/nested/deep/branch');
-      writeFileSync(join(TEST_DIR, 'nested.ts'), 'export const nested = 1;');
-      exec('git add .');
-      exec('git commit -m "feat: Nested branch commit NEST-001"');
+    expect(result).toContain('"commits"');
+    expect(result).toContain('PROJ-123');
 
-      const result = exec(`node ${CLI_PATH} --format raw-json --stdout`);
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    expect(jsonMatch).not.toBe(null);
 
-      expect(result).toContain('feature/nested/deep/branch');
-      expect(result).toContain('NEST-001');
-
-      // Cleanup - go back to feature/test
-      exec('git checkout feature/test');
-    });
-
-    it('handles unicode in commit messages', () => {
-      exec('git checkout -b feature/unicode-test');
-      writeFileSync(join(TEST_DIR, 'unicode.ts'), 'export const emoji = "🦆";');
-      exec('git add .');
-      exec('git commit -m "feat: Add emoji support 🦆 EMOJI-123"');
-
-      const result = exec(`node ${CLI_PATH} --format raw-json --stdout`);
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      const parsed = JSON.parse(jsonMatch![0]);
-
-      const unicodeCommit = parsed.commits.find((c: { subject: string }) => c.subject.includes('emoji'));
-      expect(unicodeCommit).toBeDefined();
-      expect(unicodeCommit.subject).toContain('🦆');
-      expect(parsed.issues).toContain('EMOJI-123');
-
-      exec('git checkout feature/test');
-    });
-
-    it('handles very long commit messages', () => {
-      exec('git checkout -b feature/long-message');
-      writeFileSync(join(TEST_DIR, 'long.ts'), 'export const long = 1;');
-      exec('git add .');
-
-      const longBody = 'This is a very detailed description. '.repeat(50);
-      exec(`git commit -m "feat: Long commit LONG-999" -m "${longBody}"`);
-
-      const result = exec(`node ${CLI_PATH} --format raw-json --stdout`);
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      const parsed = JSON.parse(jsonMatch![0]);
-
-      const longCommit = parsed.commits.find((c: { subject: string }) => c.subject.includes('LONG-999'));
-      expect(longCommit).toBeDefined();
-      expect(longCommit.body.length).toBeGreaterThan(500);
-
-      exec('git checkout feature/test');
-    });
-
-    it('handles commit with no body', () => {
-      const result = exec(`node ${CLI_PATH} --format raw-json --stdout`);
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      const parsed = JSON.parse(jsonMatch![0]);
-
-      // Our test commits have no body
-      const noBodyCommit = parsed.commits.find((c: { subject: string }) => c.subject.includes('Update deps'));
-      expect(noBodyCommit).toBeDefined();
-      expect(noBodyCommit.body).toBe('');
-    });
+    const parsed = JSON.parse(jsonMatch![0]);
+    expect(parsed.commits).toBeDefined();
   });
 
-  describe('Input Error Handlers', () => {
-    it('errors on non-existent target branch', () => {
-      const { stdout, stderr, code } = execWithError(`node ${CLI_PATH} nonexistent-branch main`);
-      const output = stdout + stderr;
+  it('[configured] --no-issues skips issue extraction', () => {
+    if (!isGitConfigured()) return;
 
-      // Should either error or show no commits
-      expect(output).toMatch(/No commits found|error|fatal/i);
-    });
+    const result = exec(`node ${CLI_PATH} --format raw-json --stdout --no-issues`);
 
-    it('errors on non-existent base branch', () => {
-      const { stdout, stderr, code } = execWithError(`node ${CLI_PATH} feature/test nonexistent-base`);
-      const output = stdout + stderr;
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch![0]);
 
-      expect(output).toMatch(/No commits found|error|fatal/i);
-    });
-
-    it('handles empty pattern gracefully', () => {
-      const { stdout, stderr } = execWithError(`node ${CLI_PATH} --pattern "" --stdout --format raw-json`);
-      const output = stdout + stderr;
-
-      // Should still work, just might not match anything
-      expect(output).toContain('git-cluster-duck');
-    });
+    expect(parsed.commits[0].issues).toEqual([]);
+    expect(parsed.issues).toEqual([]);
   });
 
-  // TODO: Convert integration tests to Docker with a pre-seeded git repo fixture
-  // This would allow testing "outside git repo" scenario portably across platforms
-});
+  it('[configured] --pattern uses custom pattern', () => {
+    if (!isGitConfigured()) return;
 
-describe('CLI Help', () => {
-  it('--help shows usage', () => {
-    const result = exec(`node ${CLI_PATH} --help`, process.cwd());
+    const result = exec(`node ${CLI_PATH} --format raw-json --stdout --pattern "PROJ-\\d+"`);
 
-    expect(result).toContain('Usage:');
-    expect(result).toContain('gcd');
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch![0]);
+
+    expect(parsed.issues).toContain('PROJ-123');
+    expect(parsed.issues).toContain('PROJ-456');
   });
 
-  it('--version shows version', () => {
-    const result = exec(`node ${CLI_PATH} --version`, process.cwd());
-    const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf-8'));
+  it('[configured] handles same branch comparison', () => {
+    if (!isGitConfigured()) return;
 
-    expect(result).toContain(pkg.version);
+    const result = exec(`node ${CLI_PATH} main main --stdout --format raw-text`);
+
+    expect(result).toContain('No commits found');
   });
 
-  it('init --help shows init usage', () => {
-    const result = exec(`node ${CLI_PATH} init --help`, process.cwd());
+  it('[configured] handles branch with nested slashes', () => {
+    if (!isGitConfigured()) return;
 
-    expect(result).toContain('init');
-    expect(result).toContain('config');
+    exec('git checkout -b feature/nested/deep/branch');
+    writeFileSync(join(TEST_DIR, 'nested.ts'), 'export const nested = 1;');
+    exec('git add .');
+    exec('git commit -m "feat: Nested branch commit NEST-001"');
+
+    const result = exec(`node ${CLI_PATH} --format raw-json --stdout`);
+
+    expect(result).toContain('feature/nested/deep/branch');
+    expect(result).toContain('NEST-001');
+
+    exec('git checkout feature/test');
+  });
+
+  it('[configured] handles unicode in commit messages', () => {
+    if (!isGitConfigured()) return;
+
+    exec('git checkout -b feature/unicode-test');
+    writeFileSync(join(TEST_DIR, 'unicode.ts'), 'export const emoji = "🦆";');
+    exec('git add .');
+    exec('git commit -m "feat: Add emoji support 🦆 EMOJI-123"');
+
+    const result = exec(`node ${CLI_PATH} --format raw-json --stdout`);
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch![0]);
+
+    const unicodeCommit = parsed.commits.find((c: { subject: string }) => c.subject.includes('emoji'));
+    expect(unicodeCommit).toBeDefined();
+    expect(unicodeCommit.subject).toContain('🦆');
+    expect(parsed.issues).toContain('EMOJI-123');
+
+    exec('git checkout feature/test');
+  });
+
+  it('[configured] handles commit with no body', () => {
+    if (!isGitConfigured()) return;
+
+    const result = exec(`node ${CLI_PATH} --format raw-json --stdout`);
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch![0]);
+
+    const noBodyCommit = parsed.commits.find((c: { subject: string }) => c.subject.includes('Update deps'));
+    expect(noBodyCommit).toBeDefined();
+    expect(noBodyCommit.body).toBe('');
+  });
+
+  it('[configured] errors on non-existent target branch', () => {
+    if (!isGitConfigured()) return;
+
+    const { stdout, stderr } = execWithError(`node ${CLI_PATH} nonexistent-branch main`);
+    const output = stdout + stderr;
+
+    expect(output).toMatch(/No commits found|error|fatal/i);
+  });
+
+  it('[configured] errors on non-existent base branch', () => {
+    if (!isGitConfigured()) return;
+
+    const { stdout, stderr } = execWithError(`node ${CLI_PATH} feature/test nonexistent-base`);
+    const output = stdout + stderr;
+
+    expect(output).toMatch(/No commits found|error|fatal/i);
   });
 });

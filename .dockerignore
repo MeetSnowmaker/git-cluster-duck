@@ -1,0 +1,16 @@
+# Ignore everything
+*
+
+# Allow necessary files
+!package.json
+!package-lock.json
+!tsconfig.json
+!vitest.config.ts
+
+# Allow source, test, and script directories
+!src
+!src/**
+!tests
+!tests/**
+!scripts
+!scripts/**

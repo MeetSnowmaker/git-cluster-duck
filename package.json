@@ -18,6 +18,9 @@
     "test:unit:coverage": "vitest run --coverage --coverage.reportsDirectory=coverage/unit tests/unit",
     "test:integration": "vitest run tests/integration",
     "test:integration:coverage": "vitest run --coverage --coverage.reportsDirectory=coverage/integration tests/integration",
+    "docker:build": "docker build -t git-cluster-duck-test .",
+    "docker:test": "docker run --rm -v ./coverage/docker:/app/coverage git-cluster-duck-test",
+    "docker:test:coverage": "docker run --rm -v ./coverage/docker:/app/coverage git-cluster-duck-test bash scripts/docker-test-coverage.sh",
     "dry-run": "npm publish --dry-run",
     "pack": "npm pack",
     "prepublishOnly": "npm run build"

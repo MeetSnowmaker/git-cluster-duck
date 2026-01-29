@@ -29,4 +29,7 @@ npm-debug.log*
 *.tgz
 
 # Test coverage
-coverage/
+coverage/*
+!coverage/docker/
+coverage/docker/*
+!coverage/docker/.gitkeep
