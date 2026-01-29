@@ -1,0 +1,45 @@
+{
+  "name": "@meetsnowmaker/git-cluster-duck",
+  "version": "0.1.0",
+  "description": "CLI tool to compare git branches and generate changelogs with automatic issue detection",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "git-cluster-duck": "dist/index.js",
+    "gcd": "dist/index.js"
+  },
+  "scripts": {
+    "clean": "rm -rf dist *.tgz",
+    "build": "npm run clean && tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "dry-run": "npm publish --dry-run",
+    "pack": "npm pack",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "git",
+    "changelog",
+    "jira",
+    "issues",
+    "cli"
+  ],
+  "author": "meetsnowmaker",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@inquirer/prompts": "^8.2.0",
+    "commander": "^13.1.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
