@@ -39,9 +39,18 @@ NODE_V8_COVERAGE="$V8_COVERAGE_DIR/configured" \
   npm run test:integration -- --coverage --coverage.reportsDirectory="$COVERAGE_DIR/configured" --coverage.reporter=json --testNamePattern="configured"
 
 echo ""
+echo "=== Phase 5: E2E - Interactive TTY ==="
+mkdir -p "$V8_COVERAGE_DIR/e2e"
+# Use GCD_V8_COVERAGE instead of NODE_V8_COVERAGE to avoid vitest writing coverage
+# The e2e setup.ts forwards this to NODE_V8_COVERAGE only for CLI subprocesses
+export GCD_V8_COVERAGE="$V8_COVERAGE_DIR/e2e"
+USE_DIST=1 npm run test:e2e
+unset GCD_V8_COVERAGE
+
+echo ""
 echo "=== Processing V8 Subprocess Coverage ==="
 # Convert V8 coverage from each phase to Istanbul format
-for phase in no-git no-config configured; do
+for phase in no-git no-config configured e2e; do
   if [ -d "$V8_COVERAGE_DIR/$phase" ] && [ "$(ls -A $V8_COVERAGE_DIR/$phase 2>/dev/null)" ]; then
     echo "Processing $phase subprocess coverage..."
     mkdir -p "$COVERAGE_DIR/v8-processed/$phase"
@@ -68,6 +77,7 @@ cp "$COVERAGE_DIR/configured/coverage-final.json" "$COVERAGE_DIR/.nyc_output/con
 cp "$COVERAGE_DIR/v8-processed/no-git/coverage-final.json" "$COVERAGE_DIR/.nyc_output/v8-no-git.json" 2>/dev/null || true
 cp "$COVERAGE_DIR/v8-processed/no-config/coverage-final.json" "$COVERAGE_DIR/.nyc_output/v8-no-config.json" 2>/dev/null || true
 cp "$COVERAGE_DIR/v8-processed/configured/coverage-final.json" "$COVERAGE_DIR/.nyc_output/v8-configured.json" 2>/dev/null || true
+cp "$COVERAGE_DIR/v8-processed/e2e/coverage-final.json" "$COVERAGE_DIR/.nyc_output/v8-e2e.json" 2>/dev/null || true
 
 # Merge and generate report
 mkdir -p "$COVERAGE_DIR/merged"

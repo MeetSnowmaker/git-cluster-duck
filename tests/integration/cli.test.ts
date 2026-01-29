@@ -454,7 +454,7 @@ describe('[configured] Full integration tests', () => {
     exec('git checkout feature/test');
   });
 
-  it('[configured] loads config from .gcdrc.json', () => {
+  it('[configured] loads config from .git-cluster-duck.json', () => {
     if (!isGitConfigured()) return;
 
     // Create config file with custom pattern
@@ -462,7 +462,7 @@ describe('[configured] Full integration tests', () => {
       patterns: ['CUSTOM-\\d+'],
       formats: ['raw-json'],
     }, null, 2);
-    writeFileSync(join(TEST_DIR, '.gcdrc.json'), configContent);
+    writeFileSync(join(TEST_DIR, '.git-cluster-duck.json'), configContent);
 
     exec('git checkout -b feature/custom-config');
     writeFileSync(join(TEST_DIR, 'custom.ts'), 'export const custom = 1;');
@@ -474,7 +474,7 @@ describe('[configured] Full integration tests', () => {
     expect(result).toContain('CUSTOM-999');
 
     // Cleanup
-    rmSync(join(TEST_DIR, '.gcdrc.json'));
+    rmSync(join(TEST_DIR, '.git-cluster-duck.json'));
     exec('git checkout feature/test');
   });
 
@@ -500,5 +500,88 @@ describe('[configured] Full integration tests', () => {
       const filePath = join(outputDir, `${format}.${ext}`);
       expect(existsSync(filePath)).toBe(true);
     }
+  });
+
+  it('[configured] uses default pattern when config has empty ticketPatterns', () => {
+    if (!isGitConfigured()) return;
+
+    // Create config with explicitly empty ticketPatterns to override DEFAULT_CONFIG
+    const configContent = JSON.stringify({
+      ticketPatterns: [],  // Explicitly empty - should fall back to DEFAULT_PATTERN
+    }, null, 2);
+    writeFileSync(join(TEST_DIR, '.git-cluster-duck.json'), configContent);
+
+    const result = exec(`node ${CLI_PATH} --format raw-json --stdout`);
+
+    // Should still extract issues using DEFAULT_PATTERN (Jira)
+    expect(result).toContain('PROJ-123');
+
+    rmSync(join(TEST_DIR, '.git-cluster-duck.json'));
+  });
+
+  it('[configured] uses config defaultOutputs when set', () => {
+    if (!isGitConfigured()) return;
+
+    // Create config with specific defaultOutputs
+    const configContent = JSON.stringify({
+      defaultOutputs: ['raw-json', 'raw-text'],
+    }, null, 2);
+    writeFileSync(join(TEST_DIR, '.git-cluster-duck.json'), configContent);
+
+    const outputDir = join(TEST_DIR, 'config-outputs');
+    const result = exec(`node ${CLI_PATH} --output ${outputDir}`);
+
+    // Should generate only the 2 formats from config
+    expect(result).toContain('Generated 2 file(s)');
+    expect(existsSync(join(outputDir, 'raw-json.json'))).toBe(true);
+    expect(existsSync(join(outputDir, 'raw-text.txt'))).toBe(true);
+
+    rmSync(join(TEST_DIR, '.git-cluster-duck.json'));
+  });
+
+  it('[configured] handles detached HEAD state', () => {
+    if (!isGitConfigured()) return;
+
+    // Detach HEAD by checking out a specific commit
+    const commitHash = exec('git rev-parse HEAD');
+    exec(`git checkout ${commitHash}`);
+
+    // Running without explicit target should still work or show error
+    const result = exec(`node ${CLI_PATH} --format raw-json --stdout`);
+
+    // Should either work or show a meaningful message
+    expect(result.length).toBeGreaterThan(0);
+
+    // Go back to branch
+    exec('git checkout feature/test');
+  });
+
+  it('[configured] errors when no base branch can be detected', () => {
+    if (!isGitConfigured()) return;
+
+    // Create a new test repo without main/master
+    const noMainDir = join(TEST_DIR, 'no-main-repo');
+    mkdirSync(noMainDir, { recursive: true });
+    execSync('git init', { cwd: noMainDir, stdio: 'pipe' });
+    execSync('git config user.email "test@test.com"', { cwd: noMainDir, stdio: 'pipe' });
+    execSync('git config user.name "Test User"', { cwd: noMainDir, stdio: 'pipe' });
+
+    // Create commit on a branch that's not main/master
+    writeFileSync(join(noMainDir, 'file.txt'), 'content');
+    execSync('git add .', { cwd: noMainDir, stdio: 'pipe' });
+    execSync('git commit -m "Initial"', { cwd: noMainDir, stdio: 'pipe' });
+    execSync('git branch -M develop', { cwd: noMainDir, stdio: 'pipe' });
+
+    // Create config that explicitly clears baseBranch to force auto-detection failure
+    const configContent = JSON.stringify({
+      baseBranch: '',  // Empty string to force detectBaseBranch() which will return null
+    }, null, 2);
+    writeFileSync(join(noMainDir, '.git-cluster-duck.json'), configContent);
+
+    const { stdout, stderr } = execWithError(`node ${CLI_PATH}`, noMainDir);
+    const output = stdout + stderr;
+
+    // Should show error about not detecting base branch
+    expect(output).toMatch(/Could not detect base branch|main|master/i);
   });
 });

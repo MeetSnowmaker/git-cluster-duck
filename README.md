@@ -218,6 +218,8 @@ echo "temp/gcd/" >> .gitignore
 - Node.js >= 22.0.0
 - Git installed and in PATH
 
+> **Note**: Due to a peer dependency conflict with `cli-testing-library`, use `npm install --legacy-peer-deps` when installing dependencies.
+
 ## Contributing
 
 See [DEV.md](DEV.md) for development setup and guidelines.

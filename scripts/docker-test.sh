@@ -28,4 +28,8 @@ echo "=== Phase 4: Integration - Fully Configured ==="
 npm run test:integration -- --testNamePattern="configured"
 
 echo ""
+echo "=== Phase 5: E2E - Interactive TTY ==="
+USE_DIST=1 npm run test:e2e
+
+echo ""
 echo "=== All Tests Passed ==="
