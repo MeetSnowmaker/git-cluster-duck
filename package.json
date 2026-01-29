@@ -1,0 +1,73 @@
+{
+  "name": "@meetsnowmaker/git-cluster-duck",
+  "version": "0.1.0",
+  "description": "CLI tool to compare git branches and generate changelogs with automatic issue detection",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "git-cluster-duck": "dist/index.js",
+    "gcd": "dist/index.js"
+  },
+  "scripts": {
+    "clean": "rm -rf dist *.tgz",
+    "build": "npm run clean && tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test:unit": "vitest run tests/unit",
+    "test:unit:watch": "vitest tests/unit",
+    "test:unit:coverage": "vitest run --coverage --coverage.reportsDirectory=coverage/unit tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:integration:coverage": "vitest run --coverage --coverage.reportsDirectory=coverage/integration tests/integration",
+    "test:e2e": "vitest run tests/e2e",
+    "test:e2e:watch": "vitest tests/e2e",
+    "test:e2e:dist": "USE_DIST=1 vitest run tests/e2e",
+    "test:e2e:coverage": "bash scripts/e2e-coverage.sh",
+    "docker:build": "docker build -t git-cluster-duck-test .",
+    "docker:test": "docker run --rm -v ./coverage/docker:/app/coverage git-cluster-duck-test",
+    "docker:test:coverage": "docker run --rm -v ./coverage/docker:/app/coverage git-cluster-duck-test bash scripts/docker-test-coverage.sh",
+    "docker:dev": "docker run --rm -v ./src:/app/src -v ./tests:/app/tests -v ./scripts:/app/scripts -v ./coverage/docker:/app/coverage git-cluster-duck-test bash scripts/docker-test-dev.sh",
+    "docker:dev:coverage": "docker run --rm -v ./src:/app/src -v ./tests:/app/tests -v ./scripts:/app/scripts -v ./coverage/docker:/app/coverage git-cluster-duck-test bash scripts/docker-test-dev.sh coverage",
+    "docker:watch": "docker run --rm -it -v ./src:/app/src -v ./tests:/app/tests -v ./scripts:/app/scripts git-cluster-duck-test bash scripts/docker-test-watch.sh",
+    "dry-run": "npm publish --dry-run",
+    "pack": "npm pack",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "git",
+    "changelog",
+    "jira",
+    "issues",
+    "cli"
+  ],
+  "author": "meetsnowmaker",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MeetSnowmaker/git-cluster-duck.git"
+  },
+  "homepage": "https://github.com/MeetSnowmaker/git-cluster-duck#readme",
+  "bugs": {
+    "url": "https://github.com/MeetSnowmaker/git-cluster-duck/issues"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@inquirer/prompts": "^8.2.0",
+    "commander": "^13.1.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.0.18",
+    "c8": "^10.1.3",
+    "cli-testing-library": "^3.0.1",
+    "nyc": "^17.1.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.18"
+  }
+}
