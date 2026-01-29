@@ -27,3 +27,6 @@ npm-debug.log*
 
 # npm
 *.tgz
+
+# Test coverage
+coverage/
