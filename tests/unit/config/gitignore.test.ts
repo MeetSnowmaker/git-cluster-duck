@@ -7,12 +7,12 @@ vi.mock('fs', () => ({
   existsSync: vi.fn(),
 }));
 
-vi.mock('../../src/git/index.js', () => ({
+vi.mock('../../../src/git/index.js', () => ({
   getRepoRoot: vi.fn(() => '/test/repo'),
 }));
 
 // Import after mocking
-import { checkGitignoreEntry } from '../../src/config/gitignore.js';
+import { checkGitignoreEntry } from '../../../src/config/gitignore.js';
 
 const mockExistsSync = vi.mocked(existsSync);
 const mockReadFileSync = vi.mocked(readFileSync);

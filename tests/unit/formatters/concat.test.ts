@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { concatTextFormatter, concatJsonFormatter, concatMdFormatter } from '../../src/formatters/concat.js';
+import { concatTextFormatter, concatJsonFormatter, concatMdFormatter } from '../../../src/formatters/concat.js';
 import { createMockCommits, createMockMeta } from '../setup.js';
 
 const mockCtx = {

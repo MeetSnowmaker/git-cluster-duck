@@ -16,7 +16,7 @@ import {
   getCommitsBetween,
   getRepoRoot,
   getRepoName,
-} from '../../src/git/index.js';
+} from '../../../src/git/index.js';
 
 const mockExecSync = vi.mocked(execSync);
 

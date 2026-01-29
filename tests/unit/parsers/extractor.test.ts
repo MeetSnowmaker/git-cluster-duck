@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { extractIssuesFromMessage, extractIssuesFromCommits, getAllUniqueIssues } from '../../src/parsers/extractor.js';
-import { PREDEFINED_PATTERNS, TicketPattern } from '../../src/parsers/patterns.js';
+import { extractIssuesFromMessage, extractIssuesFromCommits, getAllUniqueIssues } from '../../../src/parsers/extractor.js';
+import { PREDEFINED_PATTERNS, TicketPattern } from '../../../src/parsers/patterns.js';
 import { createMockCommit } from '../setup.js';
 
 const jiraPattern: TicketPattern = {

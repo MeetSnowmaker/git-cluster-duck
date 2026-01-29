@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { verboseTextFormatter, verboseJsonFormatter, verboseMdFormatter } from '../../src/formatters/verbose.js';
+import { verboseTextFormatter, verboseJsonFormatter, verboseMdFormatter } from '../../../src/formatters/verbose.js';
 import { createMockCommit, createMockMeta } from '../setup.js';
 
 const mockCtx = {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PREDEFINED_PATTERNS, DEFAULT_PATTERN, getPatternByName } from '../../src/parsers/patterns.js';
+import { PREDEFINED_PATTERNS, DEFAULT_PATTERN, getPatternByName } from '../../../src/parsers/patterns.js';
 
 describe('PREDEFINED_PATTERNS', () => {
   it('has jira pattern', () => {

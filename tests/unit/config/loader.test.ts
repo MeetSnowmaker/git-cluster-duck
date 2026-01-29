@@ -14,7 +14,7 @@ vi.mock('os', () => ({
   homedir: vi.fn(() => '/home/testuser'),
 }));
 
-vi.mock('../../src/git/index.js', () => ({
+vi.mock('../../../src/git/index.js', () => ({
   getRepoRoot: vi.fn(() => '/test/repo'),
   getRepoName: vi.fn(() => 'test-repo'),
   detectBaseBranch: vi.fn(() => 'main'),
@@ -27,8 +27,8 @@ import {
   loadConfig,
   saveConfig,
   createDefaultConfig,
-} from '../../src/config/loader.js';
-import { DEFAULT_CONFIG, Config } from '../../src/config/types.js';
+} from '../../../src/config/loader.js';
+import { DEFAULT_CONFIG, Config } from '../../../src/config/types.js';
 
 const mockExistsSync = vi.mocked(existsSync);
 const mockReadFileSync = vi.mocked(readFileSync);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summaryTextFormatter, summaryJsonFormatter, summaryMdFormatter } from '../../src/formatters/summary.js';
+import { summaryTextFormatter, summaryJsonFormatter, summaryMdFormatter } from '../../../src/formatters/summary.js';
 import { createMockCommits, createMockMeta } from '../setup.js';
 
 const mockCtx = {

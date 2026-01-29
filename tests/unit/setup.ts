@@ -1,4 +1,4 @@
-import { Commit, GitMeta } from '../src/git/types.js';
+import { Commit, GitMeta } from '../../src/git/types.js';
 
 /**
  * Create a mock commit for testing

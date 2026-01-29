@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { textFormatter, jsonFormatter, mdFormatter } from '../../src/formatters/raw.js';
+import { textFormatter, jsonFormatter, mdFormatter } from '../../../src/formatters/raw.js';
 import { createMockCommits, createMockMeta } from '../setup.js';
 
 const mockCtx = {
