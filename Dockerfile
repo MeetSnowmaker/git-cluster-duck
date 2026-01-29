@@ -1,8 +1,5 @@
 FROM node:22-slim
 
-# Install nyc globally for coverage merging
-RUN npm install -g nyc
-
 WORKDIR /app
 
 # Copy package files first for better layer caching

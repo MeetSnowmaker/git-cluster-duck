@@ -134,6 +134,25 @@ describe('[no-config] CLI with git but no user config', () => {
 
     expect(result).toContain('init');
   });
+
+  it('[no-config] handles empty git repo (no commits)', () => {
+    if (!isGitInstalled()) {
+      console.log('Skipping: git not installed yet');
+      return;
+    }
+
+    const emptyRepoDir = join(TEST_DIR, 'empty-repo');
+    mkdirSync(emptyRepoDir, { recursive: true });
+    execSync('git init', { cwd: emptyRepoDir, stdio: 'pipe' });
+    execSync('git config user.email "test@test.com"', { cwd: emptyRepoDir, stdio: 'pipe' });
+    execSync('git config user.name "Test User"', { cwd: emptyRepoDir, stdio: 'pipe' });
+
+    const { stdout, stderr } = execWithError(`node ${CLI_PATH}`, emptyRepoDir);
+    const output = stdout + stderr;
+
+    // Should handle gracefully - either error or show no commits
+    expect(output).toMatch(/No commits|error|fatal|HEAD/i);
+  });
 });
 
 // =============================================================================
@@ -366,5 +385,120 @@ describe('[configured] Full integration tests', () => {
     const output = stdout + stderr;
 
     expect(output).toMatch(/No commits found|error|fatal/i);
+  });
+
+  it('[configured] positional base branch argument works', () => {
+    if (!isGitConfigured()) return;
+
+    // Create a second base branch to test positional base argument
+    exec('git checkout main');
+    exec('git checkout -b develop');
+    writeFileSync(join(TEST_DIR, 'develop.ts'), 'export const dev = 1;');
+    exec('git add .');
+    exec('git commit -m "chore: Develop commit"');
+    exec('git checkout feature/test');
+
+    // CLI syntax: gcd [target] [base]
+    const result = exec(`node ${CLI_PATH} feature/test develop --format raw-json --stdout`);
+
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    expect(jsonMatch).not.toBe(null);
+    const parsed = JSON.parse(jsonMatch![0]);
+
+    expect(parsed.meta.baseBranch).toBe('develop');
+  });
+
+  it('[configured] handles commit with multi-line body', () => {
+    if (!isGitConfigured()) return;
+
+    exec('git checkout -b feature/multiline-body');
+    writeFileSync(join(TEST_DIR, 'multiline.ts'), 'export const m = 1;');
+    exec('git add .');
+
+    const body = 'This is line one.\\n\\nThis is line two.\\n\\n- Bullet point\\n- Another bullet';
+    exec(`git commit -m "feat: Multi-line body MULTI-001" -m "${body}"`);
+
+    const result = exec(`node ${CLI_PATH} --format raw-json --stdout`);
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch![0]);
+
+    const multiCommit = parsed.commits.find((c: { subject: string }) => c.subject.includes('MULTI-001'));
+    expect(multiCommit).toBeDefined();
+    expect(multiCommit.body.length).toBeGreaterThan(0);
+    expect(parsed.issues).toContain('MULTI-001');
+
+    exec('git checkout feature/test');
+  });
+
+  it('[configured] handles multiple issues in single commit', () => {
+    if (!isGitConfigured()) return;
+
+    exec('git checkout -b feature/multi-issue');
+    writeFileSync(join(TEST_DIR, 'multi-issue.ts'), 'export const mi = 1;');
+    exec('git add .');
+    exec('git commit -m "fix: Resolve ISSUE-001 ISSUE-002 ISSUE-003"');
+
+    const result = exec(`node ${CLI_PATH} --format raw-json --stdout`);
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch![0]);
+
+    expect(parsed.issues).toContain('ISSUE-001');
+    expect(parsed.issues).toContain('ISSUE-002');
+    expect(parsed.issues).toContain('ISSUE-003');
+
+    const multiIssueCommit = parsed.commits.find((c: { subject: string }) => c.subject.includes('ISSUE-001'));
+    expect(multiIssueCommit.issues).toContain('ISSUE-001');
+    expect(multiIssueCommit.issues).toContain('ISSUE-002');
+    expect(multiIssueCommit.issues).toContain('ISSUE-003');
+
+    exec('git checkout feature/test');
+  });
+
+  it('[configured] loads config from .gcdrc.json', () => {
+    if (!isGitConfigured()) return;
+
+    // Create config file with custom pattern
+    const configContent = JSON.stringify({
+      patterns: ['CUSTOM-\\d+'],
+      formats: ['raw-json'],
+    }, null, 2);
+    writeFileSync(join(TEST_DIR, '.gcdrc.json'), configContent);
+
+    exec('git checkout -b feature/custom-config');
+    writeFileSync(join(TEST_DIR, 'custom.ts'), 'export const custom = 1;');
+    exec('git add .');
+    exec('git commit -m "feat: Custom pattern CUSTOM-999"');
+
+    const result = exec(`node ${CLI_PATH} --stdout`);
+
+    expect(result).toContain('CUSTOM-999');
+
+    // Cleanup
+    rmSync(join(TEST_DIR, '.gcdrc.json'));
+    exec('git checkout feature/test');
+  });
+
+  it('[configured] generates all 15 format types', () => {
+    if (!isGitConfigured()) return;
+
+    const formats = [
+      'raw-text', 'raw-json', 'raw-md',
+      'concat-text', 'concat-json', 'concat-md',
+      'summary-text', 'summary-json', 'summary-md',
+      'verbose-text', 'verbose-json', 'verbose-md',
+      'issues-text', 'issues-json', 'issues-md',
+    ];
+
+    const outputDir = join(TEST_DIR, 'all-formats');
+    const result = exec(`node ${CLI_PATH} --format ${formats.join(',')} --output ${outputDir}`);
+
+    expect(result).toContain('Generated 15 file(s)');
+
+    // Verify each file exists
+    for (const format of formats) {
+      const ext = format.endsWith('-json') ? 'json' : format.endsWith('-md') ? 'md' : 'txt';
+      const filePath = join(outputDir, `${format}.${ext}`);
+      expect(existsSync(filePath)).toBe(true);
+    }
   });
 });
