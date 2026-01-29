@@ -172,8 +172,6 @@ Template variables:
 
 ## Testing
 
-See [TESTING.md](TESTING.md) for the full testing architecture and coverage details.
-
 ### Quick Reference
 
 ```bash
@@ -213,6 +211,54 @@ npm run docker:build
 npm run docker:watch
 ```
 
+### Docker Testing Phases
+
+The Docker test environment runs tests in phases to properly test edge cases:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Docker Container                          │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ Phase 1: Unit Tests (no git)                              │  │
+│  │   └─ vitest + v8 coverage                                 │  │
+│  ├───────────────────────────────────────────────────────────┤  │
+│  │ Phase 2: Integration [no-git] (git not installed)         │  │
+│  │   └─ NODE_V8_COVERAGE captures subprocess                 │  │
+│  ├───────────────────────────────────────────────────────────┤  │
+│  │ >>> apt-get install git <<<                               │  │
+│  ├───────────────────────────────────────────────────────────┤  │
+│  │ Phase 3: Integration [no-config] (git, no user config)    │  │
+│  │   └─ Tests: outside git repo, empty repo                  │  │
+│  ├───────────────────────────────────────────────────────────┤  │
+│  │ >>> git config --global user.* <<<                        │  │
+│  ├───────────────────────────────────────────────────────────┤  │
+│  │ Phase 4: Integration [configured] (full tests)            │  │
+│  │   └─ CLI E2E, all flags, edge cases                       │  │
+│  ├───────────────────────────────────────────────────────────┤  │
+│  │ Phase 5: Interactive [tty] (cli-testing-library)          │  │
+│  │   └─ init command with prompts                            │  │
+│  ├───────────────────────────────────────────────────────────┤  │
+│  │ Merge Coverage (nyc + c8)                                 │  │
+│  │   └─ vitest coverage + V8 subprocess coverage → merged/   │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+| Mode | Command | Mounts Volumes | Use When |
+|------|---------|----------------|----------|
+| Regular | `docker:test` | No | CI, final validation (uses baked-in code) |
+| Dev | `docker:dev` | Yes | One-shot test run with local changes |
+| Watch | `docker:watch` | Yes | Active development (interactive) |
+
+**Important**: None of these rebuild the Docker image. Run `docker:build` when:
+- Dependencies change (`package.json`)
+- Dockerfile changes
+- First time setup
+
+Dev/Watch modes mount `src/`, `tests/`, and `scripts/` as volumes, then rebuild TypeScript inside the container before running tests.
+
+**Coverage mounting**: Commands with coverage (`docker:test:coverage`, `docker:dev:coverage`) mount `./coverage/docker:/app/coverage`. Coverage reports are written inside the container to `/app/coverage/` and persist on your host at `./coverage/docker/`. The merged HTML report is at `./coverage/docker/merged/index.html`.
+
 ### Test Structure
 
 ```
@@ -224,7 +270,7 @@ tests/
 │   └── config/
 ├── integration/             # Real CLI tests (30 tests)
 │   └── cli.test.ts          # Phased: no-git, no-config, configured
-└── e2e/                     # Interactive TTY tests (5 tests)
+└── e2e/                     # Interactive TTY tests (7 tests)
     ├── setup.ts             # Test context, isolated HOME/git
     └── init.test.ts         # Tests for `gcd init` command
 ```
@@ -250,6 +296,27 @@ instance.userEvent.keyboard('[Enter]');
 
 // Wait for completion
 await instance.findByText('Ready!');
+```
+
+### Init Command Flow
+
+The `gcd init` command follows this interactive flow:
+
+```
+1. Check git installed
+2. Check in git repo
+3. Check config exists → confirm overwrite (if not --force)
+4. Prompts:
+   - Repository name (input, default: detected)
+   - Base branch (input, default: detected or 'main')
+   - Select ticket patterns (checkbox, required)
+   - Add custom pattern? (confirm, default: no)
+     - If yes: custom regex (input)
+   - Use all outputs? (confirm, default: yes)
+     - If no: select outputs (checkbox, required)
+   - Output directory (input, default: ./temp/gcd/{date}/{time})
+5. Save config
+6. Print gitignore warning
 ```
 
 ### Lessons Learned (The Hard Way)

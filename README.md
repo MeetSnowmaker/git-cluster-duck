@@ -189,7 +189,9 @@ Interactive setup that creates a config file with:
 | `gitlab` | `!\d+` | `!123` |
 | `azure` | `AB#\d+` | `AB#123` |
 | `linear` | `[A-Z]+-\d+` | `ENG-123` |
+| `youtrack` | `[A-Z]+-\d+` | `ISSUE-123` |
 | `pivotal` | `#\d{8,}` | `#123456789` |
+| `shorthand` | `[A-Za-z]+-\d+\|#\d+` | Jira + GitHub combined |
 
 ## Output Directory
 

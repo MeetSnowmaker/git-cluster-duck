@@ -215,6 +215,123 @@ describe('e2e: init command', () => {
     });
   });
 
+  describe('custom regex pattern', () => {
+    it('adds custom pattern when user provides one', async () => {
+      const instance = await render(CLI_RUNNER, [CLI_ENTRY, 'init'], {
+        cwd: ctx.cwd,
+        spawnOpts: { env: ctx.env },
+      });
+      instances.push(instance);
+      const { findByText, userEvent } = instance;
+
+      await findByText('git-cluster-duck init');
+
+      // Repository name - accept default
+      await findByText('Repository name');
+      await delay(100);
+      userEvent.keyboard('[Enter]');
+
+      // Base branch - accept default
+      await findByText('Base branch');
+      await delay(100);
+      userEvent.keyboard('[Enter]');
+
+      // Select ticket pattern
+      await delay(200);
+      userEvent.keyboard('[Space][Enter]');
+
+      // Add custom pattern - say YES
+      await findByText('custom regex pattern');
+      await delay(100);
+      userEvent.keyboard('y[Enter]');
+
+      // Enter custom pattern (use simple literal pattern to avoid keyboard escaping issues)
+      await findByText('Custom regex pattern');
+      await delay(100);
+      userEvent.keyboard('MYPROJ-[Enter]');
+
+      // Use all outputs - accept default (yes)
+      await findByText('output formats');
+      await delay(100);
+      userEvent.keyboard('[Enter]');
+
+      // Output directory - accept default
+      await findByText('Output directory');
+      await delay(100);
+      userEvent.keyboard('[Enter]');
+
+      await findByText('Ready!');
+
+      // Verify custom pattern was added
+      const configPath = join(ctx.home, '.config', 'git-cluster-duck', 'repo.json');
+      const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+
+      const customPattern = config.ticketPatterns.find((p: { name: string }) => p.name === 'custom');
+      expect(customPattern).toBeDefined();
+      expect(customPattern.regex).toBe('MYPROJ-');
+    });
+  });
+
+  describe('specific output formats', () => {
+    it('allows selecting specific output formats instead of all', async () => {
+      const instance = await render(CLI_RUNNER, [CLI_ENTRY, 'init'], {
+        cwd: ctx.cwd,
+        spawnOpts: { env: ctx.env },
+      });
+      instances.push(instance);
+      const { findByText, userEvent } = instance;
+
+      await findByText('git-cluster-duck init');
+
+      // Repository name - accept default
+      await findByText('Repository name');
+      await delay(100);
+      userEvent.keyboard('[Enter]');
+
+      // Base branch - accept default
+      await findByText('Base branch');
+      await delay(100);
+      userEvent.keyboard('[Enter]');
+
+      // Select ticket pattern
+      await delay(200);
+      userEvent.keyboard('[Space][Enter]');
+
+      // Add custom pattern - say NO (default)
+      await findByText('custom regex pattern');
+      await delay(100);
+      userEvent.keyboard('[Enter]');
+
+      // Use all outputs - say NO
+      await findByText('output formats');
+      await delay(100);
+      userEvent.keyboard('n[Enter]');
+
+      // Select specific formats - select first two (raw-text, raw-json)
+      await findByText('Select output formats');
+      await delay(200);
+      userEvent.keyboard('[Space]'); // Select first
+      await delay(50);
+      userEvent.keyboard('[ArrowDown][Space]'); // Move down and select second
+      await delay(50);
+      userEvent.keyboard('[Enter]'); // Confirm
+
+      // Output directory - accept default
+      await findByText('Output directory');
+      await delay(100);
+      userEvent.keyboard('[Enter]');
+
+      await findByText('Ready!');
+
+      // Verify specific outputs were saved
+      const configPath = join(ctx.home, '.config', 'git-cluster-duck', 'repo.json');
+      const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+
+      expect(config.defaultOutputs).not.toContain('all');
+      expect(config.defaultOutputs.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
   describe('config already exists', () => {
     it('prompts for overwrite confirmation and aborts on decline', async () => {
       // Create existing global config
