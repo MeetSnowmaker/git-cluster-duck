@@ -41,6 +41,14 @@
   ],
   "author": "meetsnowmaker",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MeetSnowmaker/git-cluster-duck.git"
+  },
+  "homepage": "https://github.com/MeetSnowmaker/git-cluster-duck#readme",
+  "bugs": {
+    "url": "https://github.com/MeetSnowmaker/git-cluster-duck/issues"
+  },
   "engines": {
     "node": ">=22.0.0"
   },

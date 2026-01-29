@@ -4,7 +4,7 @@
 
 ```bash
 # Clone and install
-git clone https://github.com/meetsnowmaker/git-cluster-duck.git
+git clone https://github.com/MeetSnowmaker/git-cluster-duck.git
 cd git-cluster-duck
 npm install --legacy-peer-deps
 ```
