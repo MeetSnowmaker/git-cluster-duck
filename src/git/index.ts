@@ -7,7 +7,6 @@ function exec(command: string): string {
     return execSync(command, {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
-      shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
     }).trim();
   } catch {
     return '';
