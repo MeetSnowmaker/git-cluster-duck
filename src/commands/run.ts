@@ -3,7 +3,9 @@ import { join } from 'path';
 import pc from 'picocolors';
 import {
   isGitInstalled,
+  isGitVersionSupported,
   printNoGitError,
+  printGitVersionError,
   isGitRepo,
   getCurrentBranch,
   detectBaseBranch,
@@ -51,6 +53,12 @@ export async function runCommand(
   // Check if git is installed
   if (!isGitInstalled()) {
     printNoGitError();
+    process.exit(1);
+  }
+
+  // Check git version
+  if (!isGitVersionSupported()) {
+    printGitVersionError();
     process.exit(1);
   }
 
