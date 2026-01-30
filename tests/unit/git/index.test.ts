@@ -9,6 +9,8 @@ vi.mock('child_process', () => ({
 // Import after mocking
 import {
   isGitInstalled,
+  getGitVersion,
+  isGitVersionSupported,
   isGitRepo,
   getCurrentBranch,
   branchExists,
@@ -17,6 +19,7 @@ import {
   getRepoRoot,
   getRepoName,
   printNoGitError,
+  printGitVersionError,
   getGitMeta,
 } from '../../../src/git/index.js';
 import { createMockCommits } from '../setup.js';
@@ -38,6 +41,74 @@ describe('isGitInstalled', () => {
       throw new Error('git not found');
     });
     expect(isGitInstalled()).toBe(false);
+  });
+});
+
+describe('getGitVersion', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('parses standard git version string', () => {
+    mockExecSync.mockReturnValue('git version 2.39.0');
+    const version = getGitVersion();
+    expect(version).toEqual({ major: 2, minor: 39, patch: 0 });
+  });
+
+  it('parses Windows git version string', () => {
+    mockExecSync.mockReturnValue('git version 2.20.1.windows.1');
+    const version = getGitVersion();
+    expect(version).toEqual({ major: 2, minor: 20, patch: 1 });
+  });
+
+  it('returns null when git is not available', () => {
+    mockExecSync.mockImplementation(() => {
+      throw new Error('git not found');
+    });
+    expect(getGitVersion()).toBe(null);
+  });
+
+  it('returns null for invalid version string', () => {
+    mockExecSync.mockReturnValue('invalid output');
+    expect(getGitVersion()).toBe(null);
+  });
+});
+
+describe('isGitVersionSupported', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns true for git >= 2.13', () => {
+    mockExecSync.mockReturnValue('git version 2.39.0');
+    expect(isGitVersionSupported()).toBe(true);
+  });
+
+  it('returns true for exactly git 2.13', () => {
+    mockExecSync.mockReturnValue('git version 2.13.0');
+    expect(isGitVersionSupported()).toBe(true);
+  });
+
+  it('returns true for git 3.x', () => {
+    mockExecSync.mockReturnValue('git version 3.0.0');
+    expect(isGitVersionSupported()).toBe(true);
+  });
+
+  it('returns false for git < 2.13', () => {
+    mockExecSync.mockReturnValue('git version 2.12.9');
+    expect(isGitVersionSupported()).toBe(false);
+  });
+
+  it('returns false for git 1.x', () => {
+    mockExecSync.mockReturnValue('git version 1.9.5');
+    expect(isGitVersionSupported()).toBe(false);
+  });
+
+  it('returns false when git is not available', () => {
+    mockExecSync.mockImplementation(() => {
+      throw new Error('git not found');
+    });
+    expect(isGitVersionSupported()).toBe(false);
   });
 });
 
@@ -91,13 +162,28 @@ describe('branchExists', () => {
   });
 
   it('returns true when branch exists', () => {
-    mockExecSync.mockReturnValue('yes');
+    mockExecSync.mockReturnValue('main\nfeature/test\ndevelop');
     expect(branchExists('main')).toBe(true);
   });
 
+  it('returns true when branch exists among many', () => {
+    mockExecSync.mockReturnValue('main\nfeature/test\ndevelop');
+    expect(branchExists('feature/test')).toBe(true);
+  });
+
   it('returns false when branch does not exist', () => {
-    mockExecSync.mockReturnValue('no');
+    mockExecSync.mockReturnValue('main\ndevelop');
     expect(branchExists('nonexistent')).toBe(false);
+  });
+
+  it('returns false when no branches exist', () => {
+    mockExecSync.mockReturnValue('');
+    expect(branchExists('main')).toBe(false);
+  });
+
+  it('handles whitespace in branch list', () => {
+    mockExecSync.mockReturnValue('  main  \n  develop  ');
+    expect(branchExists('main')).toBe(true);
   });
 });
 
@@ -107,20 +193,25 @@ describe('detectBaseBranch', () => {
   });
 
   it('returns main when main exists', () => {
-    mockExecSync.mockReturnValue('yes');
+    mockExecSync.mockReturnValue('main\nfeature/test');
     expect(detectBaseBranch()).toBe('main');
   });
 
   it('returns master when only master exists', () => {
     mockExecSync
-      .mockReturnValueOnce('no')  // main check
-      .mockReturnValueOnce('yes'); // master check
+      .mockReturnValueOnce('master\nfeature/test')  // main check (main not in list)
+      .mockReturnValueOnce('master\nfeature/test'); // master check (master in list)
     expect(detectBaseBranch()).toBe('master');
   });
 
   it('returns null when neither main nor master exists', () => {
-    mockExecSync.mockReturnValue('no');
+    mockExecSync.mockReturnValue('develop\nfeature/test');
     expect(detectBaseBranch()).toBe(null);
+  });
+
+  it('returns main when both main and master exist', () => {
+    mockExecSync.mockReturnValue('main\nmaster\nfeature/test');
+    expect(detectBaseBranch()).toBe('main');
   });
 });
 
@@ -230,6 +321,40 @@ describe('printNoGitError', () => {
     const output = consoleSpy.mock.calls.map(call => call[0]).join('\n');
     expect(output).toContain('Quack');
     expect(output).toContain('git');
+
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('printGitVersionError', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('outputs version error message with detected version', () => {
+    mockExecSync.mockReturnValue('git version 2.10.0');
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    printGitVersionError();
+
+    expect(consoleSpy).toHaveBeenCalled();
+    const output = consoleSpy.mock.calls.map(call => call[0]).join('\n');
+    expect(output).toContain('Quack');
+    expect(output).toContain('2.10.0');
+    expect(output).toContain('too old');
+    expect(output).toContain('2.13');
+
+    consoleSpy.mockRestore();
+  });
+
+  it('shows unknown version when git version cannot be parsed', () => {
+    mockExecSync.mockReturnValue('invalid');
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    printGitVersionError();
+
+    const output = consoleSpy.mock.calls.map(call => call[0]).join('\n');
+    expect(output).toContain('unknown');
 
     consoleSpy.mockRestore();
   });

@@ -151,7 +151,7 @@ describe('[no-config] CLI with git but no user config', () => {
     const output = stdout + stderr;
 
     // Should handle gracefully - either error or show no commits
-    expect(output).toMatch(/No commits|error|fatal|HEAD/i);
+    expect(output).toMatch(/No commits|error|fatal|HEAD|Could not determine/i);
   });
 });
 
