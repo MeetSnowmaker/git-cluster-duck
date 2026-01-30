@@ -4,11 +4,17 @@ import { Commit, GitMeta } from './types.js';
 
 function exec(command: string): string {
   try {
-    return execSync(command, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    return execSync(command, {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
+    }).trim();
   } catch {
     return '';
   }
 }
+
+const MIN_GIT_VERSION = { major: 2, minor: 13 };
 
 export function isGitInstalled(): boolean {
   try {
@@ -19,6 +25,32 @@ export function isGitInstalled(): boolean {
   }
 }
 
+export function getGitVersion(): { major: number; minor: number; patch: number } | null {
+  try {
+    const output = execSync('git --version', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    // "git version 2.20.1.windows.1" or "git version 2.39.0"
+    const match = output.match(/git version (\d+)\.(\d+)\.(\d+)/);
+    if (match) {
+      return {
+        major: parseInt(match[1], 10),
+        minor: parseInt(match[2], 10),
+        patch: parseInt(match[3], 10),
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function isGitVersionSupported(): boolean {
+  const version = getGitVersion();
+  if (!version) return false;
+  if (version.major > MIN_GIT_VERSION.major) return true;
+  if (version.major === MIN_GIT_VERSION.major && version.minor >= MIN_GIT_VERSION.minor) return true;
+  return false;
+}
+
 export function printNoGitError(): void {
   console.error('');
   console.error(pc.yellow('🦆 Quack! Git is not installed or not in your PATH.'));
@@ -26,6 +58,18 @@ export function printNoGitError(): void {
   console.error(pc.dim('   The duck cannot cluster what the duck cannot find.'));
   console.error('');
   console.error(`   Please install git: ${pc.cyan('https://git-scm.com/downloads')}`);
+  console.error('');
+}
+
+export function printGitVersionError(): void {
+  const version = getGitVersion();
+  const versionStr = version ? `${version.major}.${version.minor}.${version.patch}` : 'unknown';
+  console.error('');
+  console.error(pc.yellow(`🦆 Quack! Git version ${versionStr} is too old.`));
+  console.error('');
+  console.error(pc.dim(`   git-cluster-duck requires Git >= ${MIN_GIT_VERSION.major}.${MIN_GIT_VERSION.minor}`));
+  console.error('');
+  console.error(`   Please update git: ${pc.cyan('https://git-scm.com/downloads')}`);
   console.error('');
 }
 
@@ -44,12 +88,12 @@ export function getRepoName(): string {
 }
 
 export function getCurrentBranch(): string {
-  return exec('git branch --show-current');
+  return exec('git rev-parse --abbrev-ref HEAD');
 }
 
 export function branchExists(branch: string): boolean {
-  const result = exec(`git show-ref --verify --quiet refs/heads/${branch} && echo "yes" || echo "no"`);
-  return result === 'yes';
+  const branches = exec('git branch --format=%(refname:short)');
+  return branches.split('\n').some((b) => b.trim() === branch);
 }
 
 export function detectBaseBranch(): string | null {

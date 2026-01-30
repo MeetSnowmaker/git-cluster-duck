@@ -1,6 +1,6 @@
 {
   "name": "@meetsnowmaker/git-cluster-duck",
-  "version": "0.1.0",
+  "version": "0.1.0-beta.1",
   "description": "CLI tool to compare git branches and generate changelogs with automatic issue detection",
   "type": "module",
   "main": "./dist/index.js",
@@ -9,7 +9,7 @@
     "gcd": "dist/index.js"
   },
   "scripts": {
-    "clean": "rm -rf dist *.tgz",
+    "clean": "rimraf dist --glob \"*.tgz\"",
     "build": "npm run clean && tsc",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
@@ -22,9 +22,12 @@
     "test:e2e:watch": "vitest tests/e2e",
     "test:e2e:dist": "USE_DIST=1 vitest run tests/e2e",
     "test:e2e:coverage": "bash scripts/e2e-coverage.sh",
+    "test:e2e:coverage:win": "node scripts/e2e-coverage.js",
     "docker:build": "docker build -t git-cluster-duck-test .",
     "docker:test": "docker run --rm -v ./coverage/docker:/app/coverage git-cluster-duck-test",
+    "docker:test:win": "docker run --rm -v %cd%/coverage/docker:/app/coverage git-cluster-duck-test",
     "docker:test:coverage": "docker run --rm -v ./coverage/docker:/app/coverage git-cluster-duck-test bash scripts/docker-test-coverage.sh",
+    "docker:test:coverage:win": "docker run --rm -v %cd%/coverage/docker:/app/coverage git-cluster-duck-test bash scripts/docker-test-coverage.sh",
     "docker:dev": "docker run --rm -v ./src:/app/src -v ./tests:/app/tests -v ./scripts:/app/scripts -v ./coverage/docker:/app/coverage git-cluster-duck-test bash scripts/docker-test-dev.sh",
     "docker:dev:coverage": "docker run --rm -v ./src:/app/src -v ./tests:/app/tests -v ./scripts:/app/scripts -v ./coverage/docker:/app/coverage git-cluster-duck-test bash scripts/docker-test-dev.sh coverage",
     "docker:watch": "docker run --rm -it -v ./src:/app/src -v ./tests:/app/tests -v ./scripts:/app/scripts git-cluster-duck-test bash scripts/docker-test-watch.sh",
@@ -66,6 +69,7 @@
     "c8": "^10.1.3",
     "cli-testing-library": "^3.0.1",
     "nyc": "^17.1.0",
+    "rimraf": "^6.1.2",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^4.0.18"

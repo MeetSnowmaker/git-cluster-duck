@@ -1,5 +1,5 @@
 import { input, confirm, checkbox } from '@inquirer/prompts';
-import { isGitInstalled, printNoGitError, isGitRepo, getRepoName, detectBaseBranch } from '../git/index.js';
+import { isGitInstalled, isGitVersionSupported, printNoGitError, printGitVersionError, isGitRepo, getRepoName, detectBaseBranch } from '../git/index.js';
 import {
   Config,
   DEFAULT_CONFIG,
@@ -57,6 +57,12 @@ export async function initCommand(options: InitOptions): Promise<void> {
   // Check if git is installed
   if (!isGitInstalled()) {
     printNoGitError();
+    process.exit(1);
+  }
+
+  // Check git version
+  if (!isGitVersionSupported()) {
+    printGitVersionError();
     process.exit(1);
   }
 
