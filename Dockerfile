@@ -1,4 +1,4 @@
-FROM node:22-slim
+FROM node:24-slim
 
 # Install procps (provides 'ps' command needed by cli-testing-library)
 RUN apt-get update && apt-get install -y --no-install-recommends procps && rm -rf /var/lib/apt/lists/*

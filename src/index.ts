@@ -1,13 +1,19 @@
 #!/usr/bin/env node
 
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { program } from 'commander';
 import { initCommand } from './commands/init.js';
 import { runCommand } from './commands/run.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'));
+
 program
   .name('gcd')
   .description('Compare git branches and generate changelogs with automatic issue detection')
-  .version('0.1.0');
+  .version(pkg.version);
 
 program
   .command('init')

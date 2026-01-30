@@ -217,7 +217,7 @@ echo "temp/gcd/" >> .gitignore
 
 ## Requirements
 
-- Node.js >= 22.0.0
+- Node.js >= 24.0.0
 - Git >= 2.13 (May 2017)
 
 > **Note**: Due to a peer dependency conflict with `cli-testing-library`, use `npm install --legacy-peer-deps` when installing dependencies.

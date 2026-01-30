@@ -449,4 +449,4 @@ If e2e tests fail mysteriously:
 
 ## Node Version
 
-Requires Node.js >= 22.0.0 (LTS)
+Requires Node.js >= 24.0.0
