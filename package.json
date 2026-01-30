@@ -1,6 +1,6 @@
 {
   "name": "@meetsnowmaker/git-cluster-duck",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0",
   "description": "CLI tool to compare git branches and generate changelogs with automatic issue detection",
   "type": "module",
   "main": "./dist/index.js",
