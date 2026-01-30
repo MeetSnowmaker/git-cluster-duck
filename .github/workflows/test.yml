@@ -1,0 +1,99 @@
+name: Test Suite
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Git checks
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check branch is up to date
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          BEHIND=$(git rev-list --count HEAD..origin/${{ github.base_ref }})
+
+          echo "## Branch Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$BEHIND" -gt 0 ]; then
+            echo "❌ **Branch is $BEHIND commit(s) behind ${{ github.base_ref }}**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please rebase or merge \`${{ github.base_ref }}\` into your branch:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "git fetch origin ${{ github.base_ref }}" >> $GITHUB_STEP_SUMMARY
+            echo "git rebase origin/${{ github.base_ref }}" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ Branch is up to date with ${{ github.base_ref }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # 2. npm version check
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check version bump
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          NPM_VERSION=$(npm view @meetsnowmaker/git-cluster-duck version 2>/dev/null || echo "0.0.0")
+
+          echo "## Version Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Package version: \`$PACKAGE_VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "- npm version: \`$NPM_VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$PACKAGE_VERSION" = "$NPM_VERSION" ]; then
+            echo "⚠️ **Version unchanged** - bump version in package.json if this PR should trigger a release" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run one of:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "npm version patch  # $NPM_VERSION → x.x.+1" >> $GITHUB_STEP_SUMMARY
+            echo "npm version minor  # $NPM_VERSION → x.+1.0" >> $GITHUB_STEP_SUMMARY
+            echo "npm version major  # $NPM_VERSION → +1.0.0" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Version bumped: \`$NPM_VERSION\` → \`$PACKAGE_VERSION\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # 3. Full test suite with coverage
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test container
+        run: docker build -t git-cluster-duck-test .
+
+      - name: Run tests with coverage
+        run: |
+          mkdir -p coverage/docker
+          docker run --rm -v ${{ github.workspace }}/coverage/docker:/app/coverage git-cluster-duck-test bash scripts/docker-test-coverage.sh
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/docker/merged/
+          retention-days: 30
+
+      - name: Coverage summary
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f coverage/docker/merged/coverage.json ]; then
+            echo "✅ Coverage report generated successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Download the full HTML report from the artifacts." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Coverage report not found" >> $GITHUB_STEP_SUMMARY
+          fi
